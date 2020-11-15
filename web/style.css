@@ -118,7 +118,7 @@ Messages
 .messages {
     -webkit-box-flex: 1;
     flex: 1 1 auto;
-    color: rgba(255, 255, 255, 0.5);
+    color: rgba(255, 255, 255, 0.7);
     overflow: hidden;
     position: relative;
     width: 100%;
@@ -150,7 +150,7 @@ Messages
     position: absolute;
     bottom: -15px;
     font-size: 9px;
-    color: rgba(255, 255, 255, 0.3);
+    color: rgba(129, 30, 30, 0.3);
 }
 
 .messages .message::before {
