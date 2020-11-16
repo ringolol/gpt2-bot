@@ -37,11 +37,12 @@ function updateScrollbar() {
 }
 
 function setDate() {
-    d = new Date()
-    if (m != d.getMinutes()) {
-        m = d.getMinutes();
-        $('<div class="timestamp">' + d.getHours() + ':' + m + '</div>').appendTo($('.message:last'));
-    }
+    d = new Date();
+    // if (m != d.getMinutes()) {
+    h = d.getHours().padStart(2, '0');
+    m = d.getMinutes().padStart(2, '0');
+    $(`<div class="timestamp">{h}:{m}</div>`).appendTo($('.message:last'));
+    // }
 }
 
 function insertMessage() {
