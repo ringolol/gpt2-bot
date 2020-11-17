@@ -1,6 +1,11 @@
+import logging
+
 from peewee import *
 
 
+logger = logging.getLogger('gpt3_chat_bot')
+
+logger.info('Inializing database')
 db = SqliteDatabase('bot.db', pragmas={
     'journal_mode': 'wal',
     'cache_size': -1 * 64000,  # 64MB
@@ -19,5 +24,12 @@ class ChatModel(BaseModel):
     name = CharField(unique=True)
     history = CharField()
 
+class GenModel(BaseModel):
+    username = CharField()
+    context = CharField()
+    generation = CharField()
 
-db.create_tables([ChatModel], safe=True)
+
+# create tables if they don't exist
+db.create_tables([ChatModel, GenModel], safe=True)
+logger.info('Database is initialized')

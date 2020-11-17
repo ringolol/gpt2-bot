@@ -1,15 +1,22 @@
+import logging
+
 import torch
 from transformers import AutoTokenizer, AutoModel, AutoModelWithLMHead
 
 
-model_name = "sberbank-ai/rugpt3large_based_on_gpt2" # "sberbank-ai/rugpt2large"
-CONTEXT_LEN = 2048
-gpt2_tokenizer = AutoTokenizer.from_pretrained(model_name)
-gpt2_model = AutoModelWithLMHead.from_pretrained(model_name).to("cuda")
+logger = logging.getLogger('gpt3_chat_bot')
 
-def GPTGetMessage(context, msg_len=50, top_k=10, top_p=0.95, temperature=1.0):
-    '''GPT-2 generates a message based on context'''
+def init_gpt2():
+    global gpt2_tokenizer, gpt2_model, CONTEXT_LEN
 
+    logger.info('Initializing GPT-2 model')
+    model_name = "sberbank-ai/rugpt3large_based_on_gpt2" # "sberbank-ai/rugpt2large"
+    CONTEXT_LEN = 2048
+    gpt2_tokenizer = AutoTokenizer.from_pretrained(model_name)
+    gpt2_model = AutoModelWithLMHead.from_pretrained(model_name).to("cuda")
+    logger.info('GPT-2 model is initialized')
+
+def GPTGenerate(context, msg_len=500, top_k=10, top_p=0.95, temperature=1.0):
     encoded_prompt = gpt2_tokenizer.encode(
         context,
         add_special_tokens=False, 
@@ -18,11 +25,9 @@ def GPTGetMessage(context, msg_len=50, top_k=10, top_p=0.95, temperature=1.0):
 
     if len(encoded_prompt[0]) + msg_len > CONTEXT_LEN:
         overflow = len(encoded_prompt[0]) + msg_len - CONTEXT_LEN
-        print(encoded_prompt.shape)
         encoded_prompt = encoded_prompt[0][overflow:].view(1, -1)
-        print(encoded_prompt.shape)
 
-        print(f'Context shortened, new len: {len(encoded_prompt[0])}')
+        logger.info(f'Context shortened during GPTGenerate, new length is {len(encoded_prompt[0])}')
 
         context = gpt2_tokenizer.decode(
             encoded_prompt[0],
@@ -45,10 +50,5 @@ def GPTGetMessage(context, msg_len=50, top_k=10, top_p=0.95, temperature=1.0):
         output_sequences,
         clean_up_tokenization_spaces=True
     )
-    answer = output_sequences_dec[len(context):].split('\n')[0]
 
-    stripped_answer = ''.join([
-        sec for inx, sec in enumerate(answer.split(' - ')) if not inx % 2
-    ]).strip()
-
-    return stripped_answer
+    return output_sequences_dec

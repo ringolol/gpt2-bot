@@ -1,7 +1,8 @@
 import random
+import logging
 
-from gpt2_model import GPTGetMessage # gpt-2
-from db_models import ChatModel, db # database
+from gpt2_model import GPTGenerate # gpt-2
+from db_models import ChatModel # database
 
 
 # contexts
@@ -20,6 +21,8 @@ top_k = 10
 top_p = 0.95
 temperature = 1.0
 
+logger = logging.getLogger('gpt3_chat_bot')
+
 
 def handle_message(message, user_name, channel, solo=True, p=1.0):
     
@@ -27,22 +30,25 @@ def handle_message(message, user_name, channel, solo=True, p=1.0):
     try:
         chat_obj = ChatModel.get(ChatModel.name == channel)
     except ChatModel.DoesNotExist:
-        chat_obj = ChatModel.create(name=channel, history=INIT_CONTEXT_SOLO)
+        chat_obj = ChatModel.create(
+            name=channel, 
+            history=INIT_CONTEXT_SOLO if solo else INIT_CONTEXT_MULTY
+        )
 
-    print('='*15)
-    print('message:')
-    print(f'\tchannel: {channel}\n\tuser: {user_name}\n\tmessage: {message}')
-    print('='*15)
+    logger.info(f'''message:
+    channel: {channel}
+    user: {user_name}
+    message: {message}''')
 
     # delete old history
     if len(chat_obj.history) > 30000:
         chat_obj.history = chat_obj.history[-10000:]
         chat_obj.save()
-        print(f'History shortened.')
+        logger.info('History shortened')
 
     # special commands
     if message == 'clear':
-        chat_obj.history = INIT_CONTEXT_SOLO
+        chat_obj.history = INIT_CONTEXT_SOLO if solo else INIT_CONTEXT_MULTY
         chat_obj.save()
         return 'cleared!'
     elif message == 'history':
@@ -50,7 +56,7 @@ def handle_message(message, user_name, channel, solo=True, p=1.0):
 
 
     # add new message to history
-    chat_obj.history += f'- {message} - сказал {user_name}.\n-'
+    chat_obj.history += f'- {message} - сказал {"он" if solo else user_name}.\n-'
 
     # answer only on a fraction of messages
     #   e.g. if random.random() > 0.2, then bot answers only on
@@ -60,20 +66,23 @@ def handle_message(message, user_name, channel, solo=True, p=1.0):
         return
 
     # generate answer
-    ans = GPTGetMessage(
+    raw_output = GPTGenerate(
         chat_obj.history,
         msg_len=msg_len,
         top_k=top_k,
         top_p=top_p,
         temperature=temperature
     )
+    raw_answer = raw_output[len(chat_obj.history):].split('\n')[0]
+    answer = ''.join([
+        sec for inx, sec in enumerate(raw_answer.split(' - ')) if not inx % 2
+    ]).strip()
 
     # upd history
-    chat_obj.history += f'{ans}\n'
+    chat_obj.history += f'{answer}\n'
     chat_obj.save()
 
-    print(f'\tanswer: {ans}')
-    print('='*15)
+    logger.info(f'    answer: {answer}\n' + '='*30)
 
     # return answer
-    return ans
+    return answer
