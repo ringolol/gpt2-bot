@@ -1,10 +1,10 @@
-import logging
-
 import torch
 from transformers import AutoTokenizer, AutoModel, AutoModelWithLMHead
 
+from chat_logger import get_logger
 
-logger = logging.getLogger('gpt3_chat_bot')
+
+logger = get_logger()
 
 def init_gpt2():
     global gpt2_tokenizer, gpt2_model, CONTEXT_LEN

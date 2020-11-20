@@ -1,9 +1,9 @@
-import logging
-
 from peewee import *
 
+from chat_logger import get_logger
 
-logger = logging.getLogger('gpt3_chat_bot')
+
+logger = get_logger()
 
 logger.info('Inializing database')
 db = SqliteDatabase('bot.db', pragmas={

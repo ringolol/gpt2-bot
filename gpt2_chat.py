@@ -1,6 +1,6 @@
 import random
-import logging
 
+from chat_logger import get_logger
 from gpt2_model import GPTGenerate # gpt-2
 from db_models import ChatModel # database
 
@@ -21,7 +21,7 @@ top_k = 10
 top_p = 0.95
 temperature = 1.0
 
-logger = logging.getLogger('gpt3_chat_bot')
+logger = get_logger()
 
 
 def handle_message(message, user_name, channel, solo=True, p=1.0):
@@ -45,15 +45,6 @@ def handle_message(message, user_name, channel, solo=True, p=1.0):
         chat_obj.history = chat_obj.history[-10000:]
         chat_obj.save()
         logger.info('History shortened')
-
-    # special commands
-    if message == 'clear':
-        chat_obj.history = INIT_CONTEXT_SOLO if solo else INIT_CONTEXT_MULTY
-        chat_obj.save()
-        return 'cleared!'
-    elif message == 'history':
-        return f'History: \n{chat_obj.history}'
-
 
     # add new message to history
     chat_obj.history += f'- {message} - сказал {"он" if solo else user_name}.\n-'
