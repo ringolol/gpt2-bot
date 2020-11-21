@@ -1,19 +1,15 @@
 import os
-import re
 
 from dotenv import load_dotenv
-from telegram.ext import Updater, CommandHandler, MessageHandler, Filters
 
-from chat_logger import init_logger, get_logger
-from gpt2_chat import handle_message, INIT_CONTEXT_SOLO, INIT_CONTEXT_MULTY
-from gpt2_model import GPTGenerate, init_gpt2
+from chat_logger import init_logger # should be at top
+from gpt2_model import init_gpt2
 from chat_telegram import init_telegram
 
 
 if __name__ == '__main__':
     # setup logger
-    init_logger()
-    logger = get_logger()
+    logger = init_logger()
 
     # init gpt-2 model
     init_gpt2()

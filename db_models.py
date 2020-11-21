@@ -29,7 +29,16 @@ class GenModel(BaseModel):
     context = CharField()
     generation = CharField()
 
+class SpecialUsers(BaseModel):
+    user = CharField(primary_key=True)
+    flag = CharField()
+
 
 # create tables if they don't exist
-db.create_tables([ChatModel, GenModel], safe=True)
+db.create_tables([ChatModel, GenModel, SpecialUsers], safe=True)
 logger.info('Database is initialized')
+
+# add admin
+(SpecialUsers.insert(user='ringolol', flag='admin')
+    .on_conflict_ignore()
+    .execute())

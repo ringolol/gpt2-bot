@@ -24,7 +24,7 @@ temperature = 1.0
 logger = get_logger()
 
 
-def handle_message(message, user_name, channel, solo=True, p=1.0):
+def handle_message(message, user_name, channel, solo=True, p=1.0, always_answer=False):
     
     # get history from sqlite3 database
     try:
@@ -52,7 +52,9 @@ def handle_message(message, user_name, channel, solo=True, p=1.0):
     # answer only on a fraction of messages
     #   e.g. if random.random() > 0.2, then bot answers only on
     #   20% of messages.
-    if random.random() > p:
+
+    if not solo and not always_answer and random.random() > p:
+        logger.info("unlucky, don't answer.")
         chat_obj.save()
         return
 

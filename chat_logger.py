@@ -16,6 +16,7 @@ def init_logger():
     logger.addHandler(ch)
 
     logger.info('Started')
+    return logger
 
 def get_logger():
     '''get "gpt3_chat_bot" logger'''
