@@ -1,5 +1,5 @@
 from peewee import *
-from playhouse.sqlite_ext import SqliteExtDatabase, FTSModel, SearchField
+from playhouse.sqlite_ext import SqliteExtDatabase, FTSModel, SearchField, RowIDField
 
 from chat_logger import get_logger
 
@@ -35,7 +35,7 @@ class SpecialUsers(BaseModel):
     flag = CharField()
 
 class QA(BaseModel, FTSModel):
-    #rowid = RowIDField()
+    rowid = RowIDField()
     question = SearchField()
     answer = SearchField(unindexed=True)
 

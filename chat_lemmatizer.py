@@ -16,7 +16,7 @@ class RuLemma():
         self.morph_vocab = MorphVocab()
         self.segmenter = Segmenter()
 
-        with open('stopwords-ru.json', 'r', encoding='utf8') as f:
+        with open('stop_words_russian.json', 'r', encoding='utf8') as f:
             self.stop_words = json.load(f)
 
     def exclude_stop_words(self, tokens):
