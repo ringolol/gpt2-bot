@@ -7,6 +7,8 @@ from chat_logger import get_logger
 logger = get_logger()
 
 def init_gpt2():
+    '''init gpt-2 model'''
+
     global gpt2_tokenizer, gpt2_model, CONTEXT_LEN
 
     logger.info('Initializing GPT-2 model')
@@ -17,6 +19,8 @@ def init_gpt2():
     logger.info('GPT-2 model is initialized')
 
 def GPTGenerate(context, msg_len=500, top_k=10, top_p=0.95, temperature=1.0):
+    '''generate a continuation of the text using gpt-2 model'''
+    
     encoded_prompt = gpt2_tokenizer.encode(
         context,
         add_special_tokens=False, 

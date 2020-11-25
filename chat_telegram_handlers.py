@@ -4,9 +4,9 @@ from peewee import IntegrityError
 from telegram.ext import Filters
 
 from chat_logger import get_logger
-from gpt2_chat import handle_message, INIT_CONTEXT_SOLO, INIT_CONTEXT_MULTY
+from chat_gpt2 import answer_message, INIT_CONTEXT_SOLO, INIT_CONTEXT_MULTY
 from gpt2_model import GPTGenerate
-from db_models import GenModel, ChatModel, SpecialUsers, QA
+from chat_db_models import GenModel, ChatModel, SpecialUsers, QA
 from chat_lemmatizer import RuLemma
 
 
@@ -38,22 +38,36 @@ q - найти ответ на вопрос в QAs
 '''
 
 
+def get_cmd_par(cmd, txt):
+    '''returns the parameter (single) of the command'''
+    return re.match(
+        re_com.format(cmd),
+        txt,
+        re.DOTALL
+    ).group(1)
+
 def tg_start(update, context):
+    '''/start'''
     context.bot.send_message(chat_id=update.effective_chat.id, text=START_MESSAGE)
 
 def tg_message(update, context):
-    # don't answer bots
+    '''handle common messages by answering them'''
+
+    # don't answer bots (including itself)
     if update.message.from_user.is_bot:
         return
 
+    # input message or a question
     qst = update.message.text
+    
+    # always answer on a private message or a reply
     always_answer = False
-
     if '@rugpt3_bot' in qst or update.message.reply_to_message is not None:
         always_answer = True
         qst = re.sub(re_botname, ' ', qst)
     
-    ans = handle_message(
+    # try to generate an answer
+    ans = answer_message(
         message=qst, 
         user_name=str(update.message.from_user.first_name), 
         channel=update.effective_chat.id,
@@ -66,12 +80,8 @@ def tg_message(update, context):
         context.bot.send_message(chat_id=update.effective_chat.id, text=ans)
 
 def tg_generate_command(update, context):
-    match_cmd = re.match(
-        re_com.format('generate'),
-        update.message.text,
-        re.DOTALL
-    )
-    ctx = match_cmd.group(1)
+    '''use gpt-2 to generate continuation of the given text'''
+    ctx = get_cmd_par('generate', update.message.text)
 
     if not ctx:
         context.bot.send_message(
@@ -80,17 +90,22 @@ def tg_generate_command(update, context):
         return
     
     logger.info('Generating')
+    # generate continuation
     gen = GPTGenerate(ctx)[len(ctx):].rstrip()
     username = update.message.from_user.username
+    # return generation
     context.bot.send_message(
         chat_id=update.effective_chat.id, 
         text=f'<b>{ctx}</b>{gen}',
         parse_mode='HTML'
     )
     logger.info(f'generation:\n    username: {username}\n    ctx: {ctx}\n    gen: {gen}\n' + '='*30)
+    # save generation into the db
     GenModel.create(username=username, context=ctx, generation=gen)
 
 def tg_history_command(update, context):
+    '''return the history of the conversation between the user/group and the bot'''
+
     logger.info('Showing history')
     try:
         chat_obj = ChatModel.get(ChatModel.name == update.effective_chat.id)
@@ -101,6 +116,8 @@ def tg_history_command(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id, text=f'History: \n{hist}')
 
 def tg_clear_command(update, context):
+    '''clear chat histrory between the user/group and the bot'''
+
     logger.info('Clearing history')
     try:
         chat_obj = ChatModel.get(ChatModel.name == update.effective_chat.id)
@@ -113,12 +130,11 @@ def tg_clear_command(update, context):
     context.bot.send_message(chat_id=update.effective_chat.id, text='cleared!')
 
 def tg_ban_command(update, context):
-    match_cmd = re.match(
-        re_com.format('ban'),
-        update.message.text,
-        re.DOTALL
-    )
-    user_to_ban = match_cmd.group(1).lower()
+    '''ban user by their username, banned users are ignored by the bot'''
+
+    logger.info('Banning user')
+
+    user_to_ban = get_cmd_par('ban', update.message.text).lower()
     username = update.message.from_user.username.lower()
 
     admins = [res.user for res in SpecialUsers.select().where(SpecialUsers.flag == 'admin').execute()]
@@ -127,16 +143,17 @@ def tg_ban_command(update, context):
         try:
             SpecialUsers.insert(user=user_to_ban, flag='banned').execute()
             context.bot.send_message(chat_id=update.effective_chat.id, text=f'User {user_to_ban} is banned.')
+            logger.info(f'User {user_to_ban} is banned')
         except IntegrityError:
-            context.bot.send_message(chat_id=update.effective_chat.id, text=f'Cannot ban {user_to_ban} they are already banned or have special role.')
+            context.bot.send_message(chat_id=update.effective_chat.id, text=f'Cannot ban {user_to_ban} they are already banned or have a special role.')
+            logger.info(f'Cannot ban {user_to_ban}')
 
 def tg_unban_command(update, context):
-    match_cmd = re.match(
-        re_com.format('unban'),
-        update.message.text,
-        re.DOTALL
-    )
-    user_to_unban = match_cmd.group(1)
+    '''unban user by their username'''
+
+    logger.info('Unbanning user')
+
+    user_to_unban = get_cmd_par('unban', update.message.text)
     username = update.message.from_user.username.lower()
 
     admins = [res.user for res in SpecialUsers.select().where(SpecialUsers.flag == 'admin').execute()]
@@ -145,10 +162,16 @@ def tg_unban_command(update, context):
         try:
             SpecialUsers.get((SpecialUsers.user == user_to_unban) & (SpecialUsers.flag == 'banned')).delete_instance()
             context.bot.send_message(chat_id=update.effective_chat.id, text=f'User {user_to_unban} is unbanned.')
+            logger.info(f'User {user_to_unban} is unbanned')
         except SpecialUsers.DoesNotExist:
             context.bot.send_message(chat_id=update.effective_chat.id, text=f'User {user_to_unban} is not banned.')
+            logger.info(f'User {user_to_unban} is not banned')
 
 def tg_qa_command(update, context):
+    '''add a question and an answer pair into the db, preliminarily lemmatizing the question'''
+
+    logger.info('Adding QA')
+
     match_cmd = re.match(
         re_qa,
         update.message.text,
@@ -162,30 +185,36 @@ def tg_qa_command(update, context):
             args = match_cmd.group(1).strip()[2:-2].split(']] [[')
             question = args[0]
             answer = args[1]
-            QA.insert({
-                QA.question: lemma.lemma(question),
-                QA.answer: answer
-            }).execute()
         except Exception:
             context.bot.send_message(chat_id=update.effective_chat.id, text=f'Для создания QA используйте: /qa [[ВОПРОС]] [[ОТВЕТ]]')
-            return
+            logger.info('Cannot add QA, wrong arguments')
+            return # bad practice
+
+        lemma_q = lemma.lemma(question)
+        QA.insert({
+            QA.question: lemma_q,
+            QA.answer: answer
+        }).execute()
+        logger.info(f'QA added:\n\tQ: {question}\n\tQL: {lemma_q}\n\tA: {answer}')
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text=f'Access denied. Only admins can add QAs.')
+        logger.info('Cannot add QA, access denied')
     
 def tg_q_command(update, context):
-    match_cmd = re.match(
-        re_com.format('q'),
-        update.message.text,
-        re.DOTALL
-    )
-    question = match_cmd.group(1)
+    '''find an answer to the (lemmatized) question in the db'''
+
+    logger.info('Answering to the question (using QA)')
+
+    question = get_cmd_par('q', update.message.text)
     q_lemma = lemma.lemma(question)
-    q_query = ' OR '.join(q_lemma.split()) # like in MySQL fts in boolean mode
+    q_query = ' OR '.join(q_lemma.split()) # like in MySQL FTS in the boolean mode
     top_answers = QA.select().where(QA.match(q_query)).order_by(QA.bm25()).limit(10).execute()
     if len(top_answers) > 0:
         context.bot.send_message(chat_id=update.effective_chat.id, text=top_answers[0].answer)
+        logger.info(f'Answer:\n\tQ: {question}\n\tQL: {q_lemma}\n\tA: {top_answers[0].answer}')
     else:
         context.bot.send_message(chat_id=update.effective_chat.id, text='Похожих вопросов нет в базе данных.')
+        logger.info(f'Not suitable answer in the db:\n\tQ: {question}\n\tQL: {q_lemma}')
 
 
 handlers = [

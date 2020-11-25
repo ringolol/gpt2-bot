@@ -1,7 +1,7 @@
 from telegram.ext import Updater, CommandHandler, MessageHandler
 
 from chat_logger import get_logger
-from telegram_handlers import handlers
+from chat_telegram_handlers import handlers
 
 
 logger = get_logger()
@@ -9,10 +9,12 @@ logger = get_logger()
 
 class TelegramBot:
     def start(self):
+        '''start telegram polling'''
+        logger.info('Starting telegram')
         self.tg_updater.start_polling()
+        logger.info('Telegram is started')
 
     def __init__(self, tg_token):
-        # INIT TELEGRAM
         logger.info('Initializing telegram')
         self.tg_updater = Updater(token=tg_token, use_context=True)
         self.tg_dispatcher = self.tg_updater.dispatcher

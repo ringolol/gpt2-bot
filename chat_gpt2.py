@@ -1,8 +1,8 @@
 import random
 
 from chat_logger import get_logger
-from gpt2_model import GPTGenerate # gpt-2
-from db_models import ChatModel # database
+from gpt2_model import GPTGenerate
+from chat_db_models import ChatModel
 
 
 # contexts
@@ -24,8 +24,9 @@ temperature = 1.0
 logger = get_logger()
 
 
-def handle_message(message, user_name, channel, solo=True, p=1.0, always_answer=False):
-    
+def answer_message(message, user_name, channel, solo=True, p=1.0, always_answer=False):
+    '''generate an answer to the message'''
+
     # get history from sqlite3 database
     try:
         chat_obj = ChatModel.get(ChatModel.name == channel)
@@ -71,11 +72,10 @@ def handle_message(message, user_name, channel, solo=True, p=1.0, always_answer=
         sec for inx, sec in enumerate(raw_answer.split(' - ')) if not inx % 2
     ]).strip()
 
-    # upd history
+    # upd history in db
     chat_obj.history += f'{answer}\n'
     chat_obj.save()
 
     logger.info(f'    answer: {answer}\n' + '='*30)
 
-    # return answer
     return answer

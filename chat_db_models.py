@@ -7,34 +7,39 @@ from chat_logger import get_logger
 logger = get_logger()
 
 logger.info('Inializing database')
+
+# create db instance, as alternative use SqliteDatabase (no fts)
 db = SqliteExtDatabase('bot.db', pragmas={
     'journal_mode': 'wal',
     'cache_size': -1 * 64000,  # 64MB
     'foreign_keys': 1,
     'ignore_check_constraints': 0,
     'synchronous': 0
-}) # SqliteDatabase
+})
 
 
 class BaseModel(Model):
     class Meta:
-        # db to use
-        database = db 
+        database = db # db to use
 
 class ChatModel(BaseModel):
+    '''chat history'''
     name = CharField(unique=True)
     history = CharField()
 
 class GenModel(BaseModel):
+    '''generated texts'''
     username = CharField()
     context = CharField()
     generation = CharField()
 
 class SpecialUsers(BaseModel):
+    '''admins and banned users'''
     user = CharField(primary_key=True)
     flag = CharField()
 
 class QA(BaseModel, FTSModel):
+    '''questions and answers'''
     rowid = RowIDField()
     question = SearchField()
     answer = SearchField(unindexed=True)
